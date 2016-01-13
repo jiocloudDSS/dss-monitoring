@@ -1,0 +1,111 @@
+#!/bin/bash
+
+. ./process_status
+hostname=`hostname`
+
+#### MONITOR radosgw PROCESSES ON THIS NODE ####
+
+
+
+monitor_process()
+{
+    pid=`pgrep -f "$1 -n client.radosgw.gateway"`
+    #echo $pid
+    if [ -n "$pid" ]; then
+        #process is running
+        status=0
+        statustxt=OK
+        status_string="Process  $1 is running"
+        echo "$status process_radosgw - $hostname : $statustxt - $status_string"
+    
+        get_process_stats $pid
+        if [ "$num_open_files" -gt 10000 ]; then
+            status=2
+            statustxt=CRITICAL
+        elif [  "$num_open_files" -gt 1000 ]; then
+            status=1
+            statustxt=WARNING
+        else
+            status=0
+            statustxt=OK
+        fi
+        status_string="Process  $1 has opened $num_open_files files"
+        echo "$status num_open_files_$1 num_files=$num_open_files $hostname : $statustxt - $status_string"
+
+
+        if [ "$virtual_mem" -gt 100000000000 ]; then
+            status=2
+            statustxt=CRITICAL
+        elif [  "$num_open_files" -gt 10000000000 ]; then
+            status=1
+            statustxt=WARNING
+        else
+            status=0
+            statustxt=OK
+        fi
+        status_string="Process  $1 is using $virtual_mem bytes virtual memory"
+        echo "$status virtual_memory_$1i memory=$virtual_mem $hostname : $statustxt - $status_string"
+
+
+        if [ "$resident_mem" -gt 10000000000 ]; then
+            status=2
+            statustxt=CRITICAL
+        elif [  "$resident_mem" -gt 5000000000 ]; then
+            status=1
+            statustxt=WARNING
+        else
+            status=0
+            statustxt=OK
+        fi
+        status_string="Process  $1 is using $resident_mem bytes resident memory"
+        echo "$status resident_memory_$1 memory=$resident_mem $hostname : $statustxt - $status_string"
+
+
+        if [ $(echo "$cpu_percentage > 1000" | bc) -eq 1 ]; then
+            status=2
+            statustxt=CRITICAL
+        elif [  $(echo "$cpu_percentage > 500" | bc) -eq 1 ]; then
+            status=1
+            statustxt=WARNING
+        else
+            status=0
+            statustxt=OK
+        fi
+        status_string="Process  $1 is using $cpu_percentage% cpu"
+        echo "$status cpu_usage_$1 cpu=$cpu_percentage $hostname : $statustxt - $status_string"
+
+
+    else
+        #process is not running
+        status=2
+        statustxt=CRITICAL
+        status_string="Process  $1 is NOT running"
+        echo "$status process_radosgw - $hostname : $statustxt - $status_string"
+
+    fi
+}
+
+monitor_process "radosgw"
+
+# check number of connections with lb
+lb_ip="10.140.214.250"
+num_connections_with_lb=`netstat -antp | grep -i $lb_ip | wc -l`
+if [ "$num_connections_with_lb" -gt 1024 ]; then
+    status=2
+    statustxt=CRITICAL
+elif [ "$num_connections_with_lb" -gt 512 ]; then
+    status=1
+    statustxt=WARNING
+else
+    status=0
+    statustxt=OK
+fi
+
+status_string="Radosgw $hostname  has $num_connections_with_lb connections with lb"
+echo "$status radosgw_num_connections_with_lb connections=$num_connections_with_lb $hostname : $statustxt - $status_string"
+
+
+# check bucket creation/deletion, object put/get/del
+#rgw_status=`python /home/obj_team/radosgw_status.py`
+#echo $rgw_status
+python ./radosgw_status.py

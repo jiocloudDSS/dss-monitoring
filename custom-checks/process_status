@@ -1,0 +1,48 @@
+#!/bin/bash
+	
+# given a pid, get vmem, rmem, lsof, cpu
+get_process_stats()
+{
+	pid=$1
+	
+	# number of open files using lsof
+	num_open_files=`lsof -p $pid | wc -l`
+	
+	# use top to get vmem, rmem, cpu
+	top_info=`top -p $pid -n 1 -b | grep $pid`
+	top_info_array=($top_info)
+	
+	virtual_mem=${top_info_array[4]}
+	#convert to bytes
+	is_tb=`echo $virtual_mem | grep t` 
+	is_gb=`echo $virtual_mem | grep g`
+	is_mb=`echo $virtual_mem | grep m`
+	if_kb=`echo $virtual_mem | grep k` 
+	if [ -n "$is_tb" ]; then
+	    virtual_mem=$((`echo $virtual_mem | sed 's/\([0-9]\+\)\.[0-9]\+t/\1/g'` * 1024 * 1024 * 1024 * 1024))
+	elif [ -n "$is_gb" ]; then
+	    virtual_mem=$((`echo $virtual_mem | sed 's/\([0-9]\+\)\.[0-9]\+g/\1/g'` * 1024 * 1024 * 1024))
+	elif [ -n "$is_mb" ]; then
+	    virtual_mem=$((`echo $virtual_mem | sed 's/\([0-9]\+\)\.[0-9]\+m/\1/g'` * 1024 * 1024))
+	elif [ -n "$is_kb" ]; then
+	    virtual_mem=$((`echo $virtual_mem | sed 's/\([0-9]\+\)\.[0-9]\+k/\1/g'` * 1024))
+	fi
+	
+	resident_mem=${top_info_array[5]}
+	#convert to bytes
+	is_tb=`echo $resident_mem | grep t` 
+	is_gb=`echo $resident_mem | grep g`
+	is_mb=`echo $resident_mem | grep m`
+	if_kb=`echo $resident_mem | grep k` 
+	if [ -n "$is_tb" ]; then
+	    resident_mem=$((`echo $resident_mem | sed 's/\([0-9]\+\)\.[0-9]\+t/\1/g'` * 1024 * 1024 * 1024 * 1024))
+	elif [ -n "$is_gb" ]; then
+	    resident_mem=$((`echo $resident_mem | sed 's/\([0-9]\+\)\.[0-9]\+g/\1/g'` * 1024 * 1024 * 1024))
+	elif [ -n "$is_mb" ]; then
+	    resident_mem=$((`echo $resident_mem | sed 's/\([0-9]\+\)\.[0-9]\+m/\1/g'` * 1024 * 1024))
+	elif [ -n "$is_kb" ]; then
+	    resident_mem=$((`echo $resident_mem | sed 's/\([0-9]\+\)\.[0-9]\+k/\1/g'` * 1024))
+	fi
+	
+	cpu_percentage=${top_info_array[8]}
+}

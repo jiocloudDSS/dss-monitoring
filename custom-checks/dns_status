@@ -1,0 +1,32 @@
+#!/bin/bash
+
+hostname=`hostname`
+
+#### MONITOR DNS FOR INTER-SERVICE (just IAM for our case) ####
+
+dns_lookup() 
+{
+    lookup_response=`nslookup $1`
+    lookup_ret_status=$?
+    if [ $lookup_ret_status = 0 ]; then
+        status=0
+        statustxt=OK
+    else
+        status=2
+        statustxt=CRITICAL
+    fi
+   
+    #echo $lookup_response
+    status_string=""
+    for line in $lookup_response
+    do
+        status_string="$status_string $line"
+    done
+
+    echo "$status dns_lookup_$2 - $hostname, endpoint=$1: $statustxt - $status_string"
+}
+
+dns_lookup "iam.ind-west-1.staging.deprecated.jiocloudservices.com" "deprecated_iam"
+dns_lookup "iam.ind-west-1.staging.jiocloudservices.com" "iam"
+
+

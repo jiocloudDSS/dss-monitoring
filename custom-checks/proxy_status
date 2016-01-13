@@ -1,0 +1,35 @@
+#!/bin/bash
+
+hostname=`hostname`
+
+#### MONITOR HTTP AND HTTPS PROXY ####
+
+wget_page() 
+{
+    cur_time=`date +%s%N`
+    wget_response=$(wget $1 -T 10 -O /tmp/wget_page_$cur_time 2>&1 > /dev/null)
+    wget_ret_status=$?
+    rm -f /tmp/wget_page_$cur_time
+
+    if [ $wget_ret_status = 0 ]; then
+        status=0
+        statustxt=OK
+    else
+        status=1
+        statustxt=WARNING
+    fi
+   
+    status_string=""
+    for line in $wget_response
+    do
+        status_string="$status_string $line"
+    done
+
+    echo "$status $2 - $hostname, url=$1: $statustxt - $status_string"
+}
+
+
+#try with google.com 
+wget_page "http://www.google.com" "http_proxy"
+wget_page "https://www.google.com" "https_proxy"
+

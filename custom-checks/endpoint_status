@@ -1,0 +1,9 @@
+#!/bin/bash
+
+
+#### MONITOR endpoint from THIS NODE ####
+
+# check bucket creation/deletion, object put/get/del
+#rgw_status=`python /home/obj_team/radosgw_status.py`
+#echo $rgw_status
+python ./endpoint_status.py

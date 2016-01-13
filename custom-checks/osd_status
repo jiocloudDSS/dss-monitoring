@@ -1,0 +1,97 @@
+#!/bin/bash
+
+. ./process_status
+
+hostname=`hostname`
+
+#### MONITOR OSD PROCESSES ON THIS NODE ####
+
+monitor_process()
+{
+    pid=`pgrep -f "ceph-osd -i $1"`
+    #echo $pid
+    if [ -n "$pid" ]; then
+        #process is running
+        status=0
+        statustxt=OK
+        status_string="Process osd  $1 is running"
+        echo "$status process_osd_$1 - $hostname : $statustxt - $status_string"
+
+        get_process_stats $pid
+        if [ "$num_open_files" -gt 10000 ]; then
+            status=2
+            statustxt=CRITICAL
+        elif [  "$num_open_files" -gt 1000 ]; then
+            status=1
+            statustxt=WARNING
+        else
+            status=0
+            statustxt=OK
+        fi
+        
+        status_string="Process osd  $1 has opened $num_open_files files"
+        echo "$status num_open_files_osd_$1 num_files=$num_open_files $hostname : $statustxt - $status_string"
+
+        if [ "$virtual_mem" -gt 100000000000 ]; then
+            status=2
+            statustxt=CRITICAL
+        elif [  "$num_open_files" -gt 10000000000 ]; then
+            status=1
+            statustxt=WARNING
+        else
+            status=0
+            statustxt=OK
+        fi
+        status_string="Process osd  $1 is using $virtual_mem bytes virtual memory"
+        echo "$status virtual_memory_osd_$1 memory=$virtual_mem $hostname : $statustxt - $status_string"
+
+
+        if [ "$resident_mem" -gt 10000000000 ]; then
+            status=2
+            statustxt=CRITICAL
+        elif [  "$resident_mem" -gt 5000000000 ]; then
+            status=1
+            statustxt=WARNING
+        else
+            status=0
+            statustxt=OK
+        fi
+        status_string="Process osd  $1 is using $resident_mem bytes resident memory"
+        echo "$status resident_memory_osd_$1 memory=$resident_mem $hostname : $statustxt - $status_string"
+
+
+        if [ $(echo "$cpu_percentage > 1000" | bc) -eq 1 ]; then
+            status=2
+            statustxt=CRITICAL
+        elif [  $(echo "$cpu_percentage > 500" | bc) -eq 1 ]; then
+            status=1
+            statustxt=WARNING
+        else
+            status=0
+            statustxt=OK
+        fi
+        status_string="Process osd  $1 is using $cpu_percentage% cpu"
+        echo "$status cpu_usage_osd_$1 cpu=$cpu_percentage $hostname : $statustxt - $status_string"
+
+
+    else
+        #process is not running
+        status=2
+        statustxt=CRITICAL
+        status_string="Process osd  $1 is NOT running"
+        echo "$status process_osd_$1 - $hostname : $statustxt - $status_string"
+
+    fi
+}
+
+
+#get the osds which must be running on this node using osd tree
+#TODO: assuming we will have exactly 23 osds per node, remove this assumption
+#TODO: do not consider osds which are out
+
+osds_on_host=`ceph osd tree | grep $hostname -A 23 | grep -o osd.[0-9]* | sed s/osd.//`
+
+for osd in $osds_on_host
+do
+    monitor_process $osd
+done

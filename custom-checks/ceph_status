@@ -1,0 +1,76 @@
+#!/bin/bash
+
+hostname=`hostname`
+
+#### MONITOR OVERALL CEPH CLUSTER HEALTH ####
+
+ceph_health_ok="HEALTH_OK"
+ceph_health_warn="HEALTH_WARN"
+ceph_status=`ceph -s`
+count=0
+ceph_health=""
+
+for line in $ceph_status
+do
+    count=$((count+1))
+    if [ $count = 4 ]; then 
+        ceph_health=$line
+    fi
+    #echo $line
+    status_string="$status_string $line"
+done
+#echo "$ceph_health"
+
+if [ "$ceph_health" = "$ceph_health_ok" ]; then
+    status=0
+    statustxt=OK
+elif [ "$ceph_health" = "$ceph_health_warn" ] ; then
+    status=1
+    statustxt=WARNING
+else
+    status=2
+    statustxt=CRITICAL
+fi
+#echo $status_string
+
+echo "$status ceph_health health=$ceph_health $hostname : $statustxt - $status_string"
+
+#### MONITOR PGS HEALTH ####
+
+pg_health_ok="ok"
+pg_inactive_status="$(ceph pg dump_stuck inactive 2>&1 > /dev/null)"
+pg_unclean_status="$(ceph pg dump_stuck unclean 2>&1 > /dev/null)"
+pg_stale_status="$(ceph pg dump_stuck stale 2>&1 > /dev/null)"
+pg_undersized_status="$(ceph pg dump_stuck undersized 2>&1 > /dev/null)"
+pg_degraded_status="$(ceph pg dump_stuck degraded 2>&1 > /dev/null)"
+
+# pg_health <status> <status_txt> <pg_status> <pg_type>
+
+pg_health()
+{
+    if [ "$3" = "$pg_health_ok" ]; then
+        status=0
+        statustxt=OK
+        status_string="OK"
+        num_pgs=0
+    else
+        num_pgs=`echo $3 | wc -l`
+        status=$1
+        statustxt=$2
+        status_string=""
+        for line in $3
+        do
+            status_string="$status_string $line"
+        done
+    fi
+#TODO: dump count as perf data
+    echo "$status pg_health_$4 num_$4_pgs=$num_pgs $hostname : $status_string"
+}
+
+#TODO: Decide on CRITICAL vs WARNING
+
+pg_health 2 CRITICAL $pg_inactive_status inactive
+pg_health 2 CRITICAL $pg_unclean_status unclean
+pg_health 2 CRITICAL $pg_stale_status stale
+pg_health 2 CRITICAL $pg_undersized_status undersized
+pg_health 2 CRITICAL $pg_degraded_status degraded
