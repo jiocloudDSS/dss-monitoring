@@ -1,4 +1,10 @@
 #!/bin/bash
+if [ "$#" -ne 3 ];
+then
+  echo "usage ./copy-log.sh --<pattern> --<rgw-file-path> --<key_path>"
+  exit
+fi
+
 pattern=$1
 rgw_file=$2
 key_path=$3
